@@ -25,7 +25,7 @@ extern "C"
 #include "gopro_hero_commands.hpp"
 
 
-namespace rowboat1 {
+namespace gopro_hero {
 
     class GoProHero {
     public:

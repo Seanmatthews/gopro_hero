@@ -5,7 +5,7 @@
 #include <map>
 #include <typeinfo>
 
-namespace rowboat1 {
+namespace gopro_hero {
 
     enum class WhiteBalance
     {

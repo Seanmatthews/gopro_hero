@@ -15,7 +15,7 @@ using namespace ros;
  * specialized hashmap-like message type.
  */
 
-namespace rowboat1
+namespace gopro_hero
 {
 
     GoProHeroNode::GoProHeroNode(NodeHandle nh) :

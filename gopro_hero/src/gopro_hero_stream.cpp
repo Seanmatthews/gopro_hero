@@ -7,7 +7,7 @@ using namespace cv;
 using namespace std;
 
 
-namespace rowboat1
+namespace gopro_hero
 {
     
     GoProHeroStream::GoProHeroStream(string captureHost,

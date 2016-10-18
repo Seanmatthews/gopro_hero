@@ -12,7 +12,7 @@
 #include "gopro_hero_msgs/SettingsMap.h"
 
 
-namespace rowboat1
+namespace gopro_hero
 {
     class GoProHeroNode
     {

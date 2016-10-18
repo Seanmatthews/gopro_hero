@@ -7,7 +7,7 @@
 #include "opencv2/highgui.hpp"
 #include <string>
 
-namespace rowboat1
+namespace gopro_hero
 {
     
 class GoProHeroStream
