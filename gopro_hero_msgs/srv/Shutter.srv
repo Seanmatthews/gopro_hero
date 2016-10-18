@@ -1,0 +1,3 @@
+bool multishot
+---
+sensor_msgs/CompressedImage[] images

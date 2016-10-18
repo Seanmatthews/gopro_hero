@@ -1,0 +1,10 @@
+# This acition always starts the stream
+---
+bool success
+string stream_topic
+---
+bool alive
+string error
+uint64 runtime_seconds
+uint64 remaining_storage_mb
+uint8 remaining_battery_percent
