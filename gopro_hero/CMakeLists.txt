@@ -12,15 +12,17 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
+  image_transport
   roscpp
-  sensor_msgs
+#  sensor_msgs
   std_msgs
   gopro_hero_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS thread system)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3 REQUIRED)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##

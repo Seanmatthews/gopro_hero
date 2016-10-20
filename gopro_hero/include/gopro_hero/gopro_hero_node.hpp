@@ -2,12 +2,14 @@
 #define GOPRO_HERO_NODE_HPP_
 
 #include <ros/ros.h>
-#include "std_msgs/Int8.h"
-#include "std_msgs/Bool.h"
+#include <std_msgs/Int8.h>
+#include <std_msgs/Bool.h>
+#include <image_transport/image_transport.h>
 
-#include <boost/thread/thread.hpp>
+#include <opencv2/opencv.hpp>
 
 #include "gopro_hero/gopro_hero.hpp"
+#include "gopro_hero/gopro_hero_stream.hpp"
 #include "gopro_hero_msgs/Shutter.h"
 #include "gopro_hero_msgs/SettingsMap.h"
 
@@ -23,27 +25,27 @@ namespace gopro_hero
         void init();
         
     private:
-        void mainLoop();
-
-        void modeCB(const std_msgs::Int8::ConstPtr& msg);
         void cameraSettingsCB(const gopro_hero_msgs::SettingsMap::ConstPtr& msg);
         bool triggerShutterCB(gopro_hero_msgs::Shutter::Request& req,
                               gopro_hero_msgs::Shutter::Response& rsp);
         void toggleVideoStreamCB(const std_msgs::Bool::ConstPtr& msg);
-        
-        static void processStreamFrameCB(int width, int height, int numBytes, uint8_t* bytes);
-        
+        void processStreamFrameCB(cv::Mat& frame);
+        void streamErrorCB(std::string error);
+
         ros::NodeHandle nh_;
-        ros::Publisher imageStreamPub_;
+        image_transport::ImageTransport it_;
+//        ros::Publisher imageStreamPub_;
+        image_transport::Publisher imageStreamPub_;
         ros::Subscriber toggleVideoStream_;
-        ros::Subscriber modeSub_;
         ros::Subscriber cameraSettingsSub_;
         ros::ServiceServer shutterTriggerSrv_;
         
         GoProHero gp_;
+        GoProHeroStream *gpStream_;
         bool isStreaming_;
-        boost::thread streamThread_;
         
+        const std::string host_ = "10.5.5.9";
+        const unsigned int port_ = 8554;
     };
 }
 

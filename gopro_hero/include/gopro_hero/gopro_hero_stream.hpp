@@ -5,7 +5,11 @@
 #include <boost/thread.hpp>
 #include "opencv2/opencv.hpp"
 #include "opencv2/highgui.hpp"
+
+#include <mutex>
+#include <thread>
 #include <string>
+
 
 namespace gopro_hero
 {
@@ -18,13 +22,9 @@ public:
     ~GoProHeroStream();
 
     bool start();
-    void pause();
+    bool restart();
+    void pause(bool pause);
     
-private:
-    void captureThreadFunc();
-    void errorCB(const boost::system::error_code& sc);
-    void keepAliveThreadFunc(unsigned int delayMS);
-
     void registerCaptureCallback(std::function<void(cv::Mat& img)> func)
         { captureCallbackFunc_ = func; }
 
@@ -36,7 +36,12 @@ private:
 
     void setPostCaptureCommands(std::function<void()> func)
         { postCaptureCommands_ = func; }
-        
+
+private:
+    void captureThreadFunc();
+    void errorCB(const boost::system::error_code& sc);
+    void keepAliveThreadFunc(unsigned int delayMS);
+
     std::function<void(cv::Mat& img)> captureCallbackFunc_;
     std::function<void(const std::string err)> errorCallbackFunc_;
     std::function<void()> preCaptureCommands_, postCaptureCommands_;
@@ -45,7 +50,7 @@ private:
     cv::VideoCapture* videoCapture_;
     boost::thread captureThread_, keepAliveThread_;
     bool errored_, pause_;
-    boost::once_flag startOnceFlag_;
+    std::once_flag startOnceFlag_;
 };
 }
 

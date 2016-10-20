@@ -1,6 +1,12 @@
 #include "gopro_hero/gopro_hero_node.hpp"
-#include "sensor_msgs/CompressedImage.h"
+#include "gopro_hero/gopro_hero_commands.hpp"
 
+#include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+
+#include <boost/bind.hpp>
+
+using namespace cv;
 using namespace std;
 using namespace ros;
 
@@ -20,6 +26,7 @@ namespace gopro_hero
 
     GoProHeroNode::GoProHeroNode(NodeHandle nh) :
         nh_(nh),
+        it_(nh),
         isStreaming_(false)
     {
 
@@ -27,36 +34,45 @@ namespace gopro_hero
 
     GoProHeroNode::~GoProHeroNode()
     {
-        if (isStreaming_) streamThread_.interrupt();
+        delete gpStream_;
     }
 
     
     void GoProHeroNode::init()
     {
-        modeSub_ = nh_.subscribe("mode", 1, &GoProHeroNode::modeCB, this);
-        imageStreamPub_ = nh_.advertise<sensor_msgs::CompressedImage>("stream", 5);
+        // Callbacks for stream images and errors
+        gpStream_ = new GoProHeroStream(host_, port_);
+        function<void(Mat&)> captureCB = boost::bind(&GoProHeroNode::processStreamFrameCB, this, _1);
+        function<void(string)> errorCB = boost::bind(&GoProHeroNode::streamErrorCB, this, _1);
+        gpStream_->registerCaptureCallback(captureCB);
+        gpStream_->registerErrorCallback(errorCB);
+
+        // Command code that the stream class should run before and after stream start
+        gpStream_->setPreCaptureCommands([&](){ gp_.setMode(GoProHero::Mode::VIDEO); });
+        gpStream_->setPostCaptureCommands([&](){ gp_.videoStreamStart(); });
+        
+        imageStreamPub_ = it_.advertise("stream", 5);
         toggleVideoStream_ = nh_.subscribe("toggle_video_stream", 1, &GoProHeroNode::toggleVideoStreamCB, this);
         cameraSettingsSub_ = nh_.subscribe("camera_settings", 1, &GoProHeroNode::cameraSettingsCB, this);
         shutterTriggerSrv_ = nh_.advertiseService("trigger_shutter", &GoProHeroNode::triggerShutterCB, this);
     }
 
     
-    // Callback for setting the GoPro's mode
-    void GoProHeroNode::modeCB(const std_msgs::Int8::ConstPtr& msg)
-    {
-        gp_.setMode(static_cast<GoProHero::Mode>(msg->data));
-    }
-
-
+    // Toggle video stream between paused and unpaused. First call to unpause
+    // starts the stream. Subsequent calls merely unpause.
+    // NOTE: Sets mode to video
     void GoProHeroNode::toggleVideoStreamCB(const std_msgs::Bool::ConstPtr& msg)
     {
-        if (msg->data != isStreaming_)
+        if (msg->data)
         {
-            isStreaming_ = !isStreaming_;
-            if (msg->data) streamThread_ = boost::thread(&GoProHero::streamThreadFunc,
-                                                         &GoProHeroNode::processStreamFrameCB);
-            else streamThread_.interrupt();
+            gp_.setMode(GoProHero::Mode::VIDEO);
+            if (!isStreaming_)
+            {
+                isStreaming_ = true;
+                gpStream_->start();
+            }
         }
+        gpStream_->pause(msg->data);
     }
     
 
@@ -110,6 +126,7 @@ namespace gopro_hero
 
     // A convenience service for triggering the shutter, switching mode beforehand,
     // and receiving mode-specific outputs.
+    // NOTE: Sets mode to either PHOTO or MULTISHOT
     bool GoProHeroNode::triggerShutterCB(gopro_hero_msgs::Shutter::Request& req,
                                          gopro_hero_msgs::Shutter::Response& rsp)
     {
@@ -131,9 +148,17 @@ namespace gopro_hero
 
 
     // Function called in a new thread when streaming is started
-    void GoProHeroNode::processStreamFrameCB(int width, int height, int numBytes, uint8_t* bytes)
+    void GoProHeroNode::processStreamFrameCB(Mat& frame)
     {
-        ROS_INFO_STREAM("Received " << numBytes << " from stream.");
+        ROS_INFO_STREAM("Publishing frame from stream");
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
+        imageStreamPub_.publish(msg);
     }
-    
+
+
+    // Function called if a running stream produces an error
+    void GoProHeroNode::streamErrorCB(string error)
+    {
+        ROS_ERROR_STREAM(error);
+    }
 }

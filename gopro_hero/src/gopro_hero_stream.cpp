@@ -32,21 +32,34 @@ namespace gopro_hero
     // Spawn the class' threads
     bool GoProHeroStream::start()
     {
-        pause_ = false;
-        boost::call_once([&](){
+        call_once(startOnceFlag_, [&](){
+                pause_ = false;
                 captureThread_ = boost::thread(&GoProHeroStream::captureThreadFunc, this);
                 keepAliveThread_ = boost::thread(&GoProHeroStream::keepAliveThreadFunc, this, 2000);
-            }, startOnceFlag_);
+            });
         
-        return errored_;
+        return !errored_;
+    }
+
+
+    // Forcibly stop the stream, reset all vars, start the stream
+    bool GoProHeroStream::restart()
+    {
+        captureThread_.interrupt();
+        keepAliveThread_.interrupt();
+        errored_ = false;
+        pause_ = false;
+        captureThread_ = boost::thread(&GoProHeroStream::captureThreadFunc, this);
+        keepAliveThread_ = boost::thread(&GoProHeroStream::keepAliveThreadFunc, this, 2000);
+        return !errored_;
     }
 
     
     // Place all running threads in a holding state,
     // apart from the keep alive thread
-    void GoProHeroStream::pause()
+    void GoProHeroStream::pause(bool pause)
     {
-        pause_ = true;
+        pause_ = pause;
     }
 
 
