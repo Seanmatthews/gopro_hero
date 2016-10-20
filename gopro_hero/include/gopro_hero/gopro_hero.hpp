@@ -2,17 +2,11 @@
 #define GOPRO_HERO_HPP_
 
 #include <string>
-#include <map>
 #include <typeinfo>
 #include <sstream>
 #include <iomanip>
-#include <iostream>
 
 #include <curl/curl.h>
-#include <boost/asio.hpp>
-#include <boost/thread/thread.hpp>
-#include <jsoncpp/json/json.h>
-#include <jsoncpp/json/reader.h>
 
 #include "gopro_hero_commands.hpp"
 
@@ -24,75 +18,12 @@ namespace gopro_hero {
 
         using Mode = PrimaryMode;
 
-        GoProHero() :
-            saveOnDevice_(true) {
-            mode_ = Mode::PHOTO;
-            curl_global_init(CURL_GLOBAL_ALL);
-        }
-        
-        ~GoProHero() {
-            curl_global_cleanup();
-        }
+        GoProHero();
+        ~GoProHero();
 
-        
+        void currentImages(std::vector<std::vector<unsigned char> >& images, long timeout = 10);
+        void setMode(Mode m);
 
-        // Lazy get -- move boilerplate to util function
-        void currentImages(std::vector<std::vector<unsigned char> >& images, long timeout = 10) {
-            Json::Value root;
-            Json::Reader reader;
-            std::string mediaList;
-
-            if (!curlGetText("http://10.5.5.9/gp/gpMediaList", mediaList, 2)) return;
-            std::cout << mediaList << std::endl;
-
-            if (!mediaList.empty() && reader.parse(mediaList, root))
-            {
-                const Json::Value media = root["media"][0]["fs"];
-                const Json::Value lastVal = media[media.size() - 1];
-
-                // TODO Check that it's a JPG
-                
-                int startNum = std::stoi(lastVal["b"].asString());
-                int endNum = std::stoi(lastVal["l"].asString());
-                for (int i=startNum; i<=endNum; ++i)
-                {
-                    std::string path = "http://10.5.5.9/videos/DCIM/100GOPRO/G" +
-                        zeroPaddedIntString(lastVal["g"].asString(), 3) +
-                        zeroPaddedIntString(std::to_string(i), 4) + ".JPG";
-                    
-                    std::vector<unsigned char> image;
-                    curlGetBytes(path, image, timeout);
-                    images.push_back(image);
-                }
-                                
-            }
-        }
-
-        // Is this correct? Setting mode == turning mode on?
-        void setMode(Mode m) {
-            mode_ = m;
-            switch (m) {
-            case Mode::VIDEO:
-            {
-                sendCommand("mode?p=0"); // set as mode
-                sendSetting("10/1"); // turn on
-                break;
-            }
-            case Mode::PHOTO:
-            {
-                sendCommand("mode?p=1");
-                sendSetting("21/1");
-                break;
-            }
-            case Mode::MULTISHOT:
-            {
-                sendCommand("mode?p=2");
-                sendSetting("34/1");
-                break;
-            }
-            default: break;
-            }
-        }
 
         // Global functions
         void shutter(bool on) { sendCommand("shutter?p=" + std::to_string((on ? 1 : 0))); }
@@ -172,85 +103,18 @@ namespace gopro_hero {
             }
         }
 
-        void sendMagicPacket(std::array<unsigned char, 6> mac) {
-            using namespace boost::asio;
-
-            std::array<unsigned char, 102> buf;
-
-            for (int i=0; i<6; ++i) buf[i] = 0xFF; // 6 bytes
-            for (int i=1; i<17; ++i) memcpy(&buf[i*6], &mac, 6 * sizeof(unsigned char)); // 96 bytes
-
-            // send as UDP packet
-            io_service ioService;
-            ip::udp::socket socket(ioService);
-            ip::udp::endpoint remoteEndpoint;
-//            boost::system::error::error_code err;
-            
-            socket.open(ip::udp::v4());
-            remoteEndpoint = ip::udp::endpoint(ip::address::from_string("10.5.5.9"), 9);
-            socket.send_to(buffer(buf), remoteEndpoint); //, 0, err);
-            socket.close();
-        }
         
         void sendSetting(std::string s) { send(base_ + "setting/" + s); }
         void sendCommand(std::string s) { send(base_ + "command/" + s); }
-
-        // TODO accept and parse output for success/failure--
-        // maybe have this func return actual string, then sendCommand/sendSetting
-        // can parse based on their respectie expected outputs.
-        // TODO catch exceptions
-        bool send(std::string s) {
-            std::string empty;
-            curlGetText(s, empty, 2);
-            return true;
-        }
-
-
-        bool curlGetBytes(const std::string url, std::vector<unsigned char>& image, long timeout = 10) {
-            std::string s;
-            if (curlRequestUrl(url, s, timeout))
-            {
-                std::copy(s.begin(), s.end(), std::back_inserter(image));
-                return true;
-            }
-            return false;
-        }
-
+        void sendMagicPacket(std::array<unsigned char, 6> mac);
+        bool send(std::string s);
         
-        static size_t curlWriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
-            ((std::string*)userp)->append((char*)contents, size * nmemb);
-            return size * nmemb;
-        }
-
+        bool curlGetBytes(const std::string url, std::vector<unsigned char>& image, long timeout = 10);
+        static size_t curlWriteCallback(void *contents, size_t size, size_t nmemb, void *userp);
+        bool curlGetText(const std::string url, std::string& text, long timeout = 10);
+        bool curlRequestUrl(const std::string url, std::string& readBuffer, long timeout = 10);
         
-        bool curlGetText(const std::string url, std::string& text, long timeout = 10) {
-            return curlRequestUrl(url, text);
-        }
-        
-        bool curlRequestUrl(const std::string url, std::string& readBuffer, long timeout = 10) {
-            CURL* curl = curl_easy_init();
-            CURLcode res(CURLE_FAILED_INIT);
-
-            if(curl) {
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &GoProHero::curlWriteCallback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-                curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
-                curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
-                res = curl_easy_perform(curl);
-                curl_easy_cleanup(curl);
-
-                std::cout << readBuffer.size() << std::endl;
-            }
-            return true; //CURLE_OK == res;
-        }
-
-        
-        std::string zeroPaddedIntString(std::string num, int pad) {
-            std::ostringstream ss;
-            ss << std::setw(pad) << std::setfill('0') << num;
-            return ss.str();
-        }
+        std::string zeroPaddedIntString(std::string num, int pad);
         
 
         const std::string base_ = GoProHeroCommands::commandBase();
