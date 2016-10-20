@@ -1,10 +1,10 @@
-#include "gopro_hero/gopro_hero_node.hpp"
-#include "gopro_hero/gopro_hero_commands.hpp"
-
-#include <sensor_msgs/Image.h>
-#include <cv_bridge/cv_bridge.h>
-
 #include <boost/bind.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/Image.h>
+
+#include "gopro_hero/gopro_hero_node.hpp"
+#include "gopro_hero/gopro_hero.hpp"
+#include "gopro_hero/gopro_hero_commands.hpp"
 
 using namespace cv;
 using namespace std;

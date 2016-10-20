@@ -1,7 +1,9 @@
-#include "gopro_hero/gopro_hero_stream.hpp"
-
 #include <boost/chrono.hpp>
 #include <boost/exception/exception.hpp>
+
+#include "gopro_hero/gopro_hero.hpp"
+#include "gopro_hero/gopro_hero_stream.hpp"
+
 
 using namespace cv;
 using namespace std;

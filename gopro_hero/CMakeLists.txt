@@ -87,7 +87,7 @@ include_directories(
 # add_dependencies(gopro_hero ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(gopro_hero_node src/gopro_hero_stream.cpp src/gopro_hero_node.cpp src/main.cpp)
+add_executable(gopro_hero_node src/gopro_hero.cpp src/gopro_hero_stream.cpp src/gopro_hero_node.cpp src/main.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
