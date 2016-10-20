@@ -6,10 +6,17 @@
 using namespace cv;
 using namespace std;
 
+/*! \file gopro_hero_stream.cpp
+    \brief Streaming class for GoPro Hero camera
+    \todo Remove Boost dependency
+*/
 
 namespace gopro_hero
 {
-    
+
+    /// Primary constructor
+    /// \param captureHost GoPro host address, ex. 10.5.5.9
+    /// \param capturePort GoPro UDP comms port
     GoProHeroStream::GoProHeroStream(string captureHost,
                                      unsigned int capturePort) :
         captureHost_(captureHost),
@@ -20,7 +27,8 @@ namespace gopro_hero
 
     }
 
-    
+    /// Destructor
+    ///
     GoProHeroStream::~GoProHeroStream()
     {
         keepAliveThread_.interrupt();
@@ -28,8 +36,9 @@ namespace gopro_hero
         captureThread_.join();
     }
 
-    
-    // Spawn the class' threads
+
+    /// Spawn the class' threads
+    /// \return success indication of node spin up
     bool GoProHeroStream::start()
     {
         call_once(startOnceFlag_, [&](){
@@ -42,7 +51,8 @@ namespace gopro_hero
     }
 
 
-    // Forcibly stop the stream, reset all vars, start the stream
+    /// Forcibly stop the stream, reset all vars, start the stream
+    /// \return success indication of restart
     bool GoProHeroStream::restart()
     {
         captureThread_.interrupt();
@@ -55,15 +65,16 @@ namespace gopro_hero
     }
 
     
-    // Place all running threads in a holding state,
-    // apart from the keep alive thread
+    /// Place all running threads (except keepalive) in a holding state
+    /// \param pause if true, pause; unpause otherwise
     void GoProHeroStream::pause(bool pause)
     {
         pause_ = pause;
     }
 
 
-    // Capture video frames while capture is not paused
+    /// Capture video frames while capture is not paused
+    ///
     void GoProHeroStream::captureThreadFunc()
     {
         Mat frame;
@@ -85,7 +96,8 @@ namespace gopro_hero
     }
 
 
-    // Error callback for boost async_send_to
+    /// Error callback for boost async_send_to
+    /// \param ec boost error code upon failed comms
     void GoProHeroStream::errorCB(const boost::system::error_code& ec)
     {
         string err = "Boost error code " + to_string(ec.value());
@@ -93,21 +105,24 @@ namespace gopro_hero
     }
 
 
-    // Sends an essential "keep alive" message to maintain the GoPro's stream
+    /// Sends an essential "keep alive" message to maintain the GoPro's stream
+    /// \param delayMS delay time between each sent packet in milliseconds
     void GoProHeroStream::keepAliveThreadFunc(unsigned int delayMS)
     {
         try
         {
-            boost::asio::io_service ioService;
-            boost::asio::ip::udp::resolver resolver(ioService);
-            boost::asio::ip::udp::endpoint dest(boost::asio::ip::address::from_string(captureHost_), capturePort_);
-            boost::asio::ip::udp::socket sock(ioService, boost::asio::ip::udp::v4());
+            using namespace boost::asio;
+            io_service ioService;
+            ip::udp::resolver resolver(ioService);
+            ip::udp::endpoint dest(ip::address::from_string(captureHost_), capturePort_);
+            ip::udp::socket sock(ioService, ip::udp::v4());
 
             for (;;)
             {
                 boost::this_thread::sleep_for(boost::chrono::milliseconds(delayMS));
-                sock.async_send_to(boost::asio::buffer("_GPHD_:0:0:2:0.000000\n", 22), dest,
-                                   boost::bind(&GoProHeroStream::errorCB, this, boost::asio::placeholders::error));
+                sock.async_send_to(buffer("_GPHD_:0:0:2:0.000000\n", 22), dest,
+                                   boost::bind(&GoProHeroStream::errorCB, this,
+                                               boost::asio::placeholders::error));
             }
         }
         catch (boost::exception& e)

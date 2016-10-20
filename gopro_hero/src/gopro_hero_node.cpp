@@ -10,20 +10,25 @@ using namespace cv;
 using namespace std;
 using namespace ros;
 
-/**
- * The node does not have many primary functions-- triggering video & photo,
- * streaming video, and adjusting camera settings. However, there exist a
- * large number of settings. While the interal gopro_hero lib accesses these
- * settings individually, allowing such access through the ROS interface
- * would be cumbersome to develop and messy in a system of ROS nodes with
- * various params. To compartmentalize the camera params, users may set them
- * in groups of "camera", "video", "photo", and "multishot", using a
- * specialized hashmap-like message type.
+
+/*! \file gopro_hero_node.cpp
+    \brief ROS node wrapper for GoPro Hero class
+
+    The node does not have many primary functions-- triggering video & photo,
+    streaming video, and adjusting camera settings. However, there exist a
+    large number of settings. While the interal gopro_hero lib accesses these
+    settings individually, allowing such access through the ROS interface
+    would be cumbersome to develop and messy in a system of ROS nodes with
+    various params. To compartmentalize the camera params, users may set them
+    in groups of "camera", "video", "photo", and "multishot", using a
+    specialized hashmap-like message type.
  */
 
 namespace gopro_hero
 {
 
+    /// Primary constructor
+    /// \param ROS Nodehandle object
     GoProHeroNode::GoProHeroNode(NodeHandle nh) :
         nh_(nh),
         it_(nh),
@@ -32,12 +37,16 @@ namespace gopro_hero
 
     }
 
+    /// Destructor
+    ///
     GoProHeroNode::~GoProHeroNode()
     {
         delete gpStream_;
     }
 
-    
+
+    /// Initializes all the ROS bits
+    ///
     void GoProHeroNode::init()
     {
         // Callbacks for stream images and errors
@@ -58,9 +67,10 @@ namespace gopro_hero
     }
 
     
-    // Toggle video stream between paused and unpaused. First call to unpause
-    // starts the stream. Subsequent calls merely unpause.
-    // NOTE: Sets mode to video
+    /// Toggle video stream between paused and unpaused.
+    /// First call to unpause starts the stream. Subsequent calls merely unpause.
+    /// \note Sets mode to video
+    /// \param msg delivered ROS message
     void GoProHeroNode::toggleVideoStreamCB(const std_msgs::Bool::ConstPtr& msg)
     {
         if (msg->data)
@@ -76,7 +86,9 @@ namespace gopro_hero
     }
     
 
-    // NOTE no checks for proper enum value-- cast will occur regardless
+    /// Callback for external messages adjusting camera settings
+    /// \param msg Delivered ROS message
+    /// \note No checks for proper enum value-- cast will occur regardless
     void GoProHeroNode::cameraSettingsCB(const gopro_hero_msgs::SettingsMap::ConstPtr& msg)
     {
         for (auto s : msg->settings)
@@ -124,9 +136,12 @@ namespace gopro_hero
     }
 
 
-    // A convenience service for triggering the shutter, switching mode beforehand,
-    // and receiving mode-specific outputs.
-    // NOTE: Sets mode to either PHOTO or MULTISHOT
+    /// Convenience service for triggering the shutter, switching mode beforehand,
+    /// and receiving mode-specific outputs.
+    /// \param req ROS service request commanding either PHOTO or MULTISHOT
+    /// \param rsp ROS service response with images array
+    /// \note Sets mode to either PHOTO or MULTISHOT
+    /// \return Success condition
     bool GoProHeroNode::triggerShutterCB(gopro_hero_msgs::Shutter::Request& req,
                                          gopro_hero_msgs::Shutter::Response& rsp)
     {
@@ -147,7 +162,8 @@ namespace gopro_hero
     }
 
 
-    // Function called in a new thread when streaming is started
+    /// Function called in a new thread when streaming is started
+    /// \param frame opencv image from camera stream
     void GoProHeroNode::processStreamFrameCB(Mat& frame)
     {
         ROS_INFO_STREAM("Publishing frame from stream");
@@ -156,7 +172,8 @@ namespace gopro_hero
     }
 
 
-    // Function called if a running stream produces an error
+    /// Function called if a running stream produces an error
+    /// \param error readable representation of errors from stream class
     void GoProHeroNode::streamErrorCB(string error)
     {
         ROS_ERROR_STREAM(error);

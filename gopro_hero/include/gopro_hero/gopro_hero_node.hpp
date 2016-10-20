@@ -34,7 +34,6 @@ namespace gopro_hero
 
         ros::NodeHandle nh_;
         image_transport::ImageTransport it_;
-//        ros::Publisher imageStreamPub_;
         image_transport::Publisher imageStreamPub_;
         ros::Subscriber toggleVideoStream_;
         ros::Subscriber cameraSettingsSub_;
