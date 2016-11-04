@@ -15,14 +15,14 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   roscpp
-#  sensor_msgs
+  sensor_msgs
   std_msgs
   gopro_hero_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS thread system)
-find_package(OpenCV 3 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
